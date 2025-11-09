@@ -32,7 +32,7 @@ def main(args):
         proposal_dir=args.proposal_dir,
         max_proposals=args.max_proposals,
     )
-    loader = DataLoader(dataset, batch_size=1, shuffle=False)
+    loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=lambda x: x)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     feature_model = AlexNetExtractor(pretrained=False)
@@ -44,9 +44,10 @@ def main(args):
 
     with torch.no_grad():
         for batch in loader:
-            file_name = batch["file_name"][0]
-            image = batch["image"][0]
-            proposals = batch["proposals"][0]
+            sample = batch[0]
+            file_name = sample["file_name"]
+            image = sample["image"]
+            proposals = sample["proposals"]
 
             crops = preprocess_crops(image, proposals, dataset.transform)
             if not crops:
