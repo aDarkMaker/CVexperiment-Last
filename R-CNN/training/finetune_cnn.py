@@ -16,6 +16,8 @@ os.environ.setdefault("TORCH_HOME", TORCH_CACHE_DIR)
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
+import time
+
 import torch  # pyright: ignore[reportMissingImports]
 import torch.nn as nn  # pyright: ignore[reportMissingImports]
 import torch.optim as optim  # pyright: ignore[reportMissingImports]
@@ -47,7 +49,8 @@ class RCNNTrainDataset(Dataset):
         self.samples: List[Tuple[str, np.ndarray, int]] = []
 
         rng = random.Random(42)
-        for idx in range(len(base_dataset)):
+        total_images = len(base_dataset)
+        for idx in range(total_images):
             item = base_dataset[idx]
             proposals = item["proposals"][:max_proposals]
             annotations = item["annotations"]
@@ -84,6 +87,12 @@ class RCNNTrainDataset(Dataset):
             self.samples.extend(positives)
             self.samples.extend(negatives)
 
+            if (idx + 1) % 50 == 0 or (idx + 1) == total_images:
+                print(
+                    f"[RCNNTrainDataset] 已处理图像 {idx + 1}/{total_images}，累计样本 {len(self.samples)}",
+                    flush=True,
+                )
+
         if not self.samples:
             raise RuntimeError("未从数据集中采集到有效样本，请检查 proposals 或标注。")
 
@@ -104,8 +113,10 @@ def train_one_epoch(loader, feature_model, classifier, criterion, optimizer, dev
     running_loss = 0.0
     total = 0
     correct = 0
+    total_batches = len(loader)
+    batch_start = time.perf_counter()
 
-    for images, labels in loader:
+    for batch_idx, (images, labels) in enumerate(loader, 1):
         images = images.to(device)
         labels = labels.to(device)
 
@@ -120,6 +131,17 @@ def train_one_epoch(loader, feature_model, classifier, criterion, optimizer, dev
         preds = logits.argmax(dim=1)
         correct += (preds == labels).sum().item()
         total += images.size(0)
+
+        if batch_idx % 10 == 0 or batch_idx == total_batches:
+            elapsed = time.perf_counter() - batch_start
+            print(
+                f"[train] batch {batch_idx}/{total_batches}, "
+                f"loss={running_loss / max(total, 1):.4f}, "
+                f"acc={correct / max(total, 1):.4f}, "
+                f"elapsed={elapsed:.1f}s",
+                flush=True,
+            )
+            batch_start = time.perf_counter()
 
     avg_loss = running_loss / max(total, 1)
     accuracy = correct / max(total, 1)
