@@ -2,8 +2,8 @@ import argparse
 import json
 import os
 
-from pycocotools.coco import COCO  # pyright: ignore[reportMissingImports]
-from pycocotools.cocoeval import COCOeval  # pyright: ignore[reportMissingImports]
+from pycocotools.coco import COCO  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
+from pycocotools.cocoeval import COCOeval  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
 
 
 def coco_evaluate(ann_file: str, det_file: str, iou_type: str = "bbox"):

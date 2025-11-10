@@ -6,7 +6,7 @@ from typing import Dict, List
 
 import numpy as np  # pyright: ignore[reportMissingImports]
 import torch  # pyright: ignore[reportMissingImports]
-from pycocotools import mask as mask_utils  # pyright: ignore[reportMissingImports]
+from pycocotools import mask as mask_utils  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
 from torchvision.models.detection import maskrcnn_resnet50_fpn  # pyright: ignore[reportMissingImports]
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor  # pyright: ignore[reportMissingImports]
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor  # pyright: ignore[reportMissingImports]
