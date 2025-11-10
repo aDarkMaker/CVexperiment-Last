@@ -88,6 +88,9 @@ def main():
     if args.visualize_dir:
         os.makedirs(args.visualize_dir, exist_ok=True)
 
+    total_images = len(dataset) if not args.limit else min(args.limit, len(dataset))
+    print(f"[INFO] Running inference on {total_images} images...")
+
     with torch.no_grad():
         for idx in range(len(dataset)):
             if args.limit and idx >= args.limit:
@@ -123,6 +126,9 @@ def main():
                         "segmentation": rle,
                     }
                 )
+
+        if (idx + 1) % 10 == 0 or (args.limit and idx + 1 == args.limit) or idx + 1 == len(dataset):
+            print(f"[INFO] Processed {idx + 1}/{total_images} images", flush=True)
 
     with open(args.out_json, "w") as fp:
         json.dump(detections, fp)
