@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 import sys
+import time
 from typing import List
 
 import torch  # pyright: ignore[reportMissingImports]
@@ -10,7 +11,6 @@ from torch.utils.data import DataLoader  # pyright: ignore[reportMissingImports]
 from torchvision.models.detection import maskrcnn_resnet50_fpn  # pyright: ignore[reportMissingImports]
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor  # pyright: ignore[reportMissingImports]
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor  # pyright: ignore[reportMissingImports]
-from tqdm import tqdm  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 CACHE_DIR = os.path.join(PROJECT_ROOT, ".cache", "torch")
@@ -50,15 +50,11 @@ def build_model(num_classes: int, pretrained: bool = True):
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=20, scaler=None):
     model.train()
+    total_batches = len(data_loader)
     running_loss = 0.0
-    accum_steps = 0
-    progress = tqdm(
-        enumerate(data_loader, start=1),
-        total=len(data_loader),
-        desc=f"Epoch {epoch}",
-        dynamic_ncols=True,
-    )
-    for step, (images, targets, _) in progress:
+    batch_start = time.perf_counter()
+
+    for batch_idx, (images, targets, _) in enumerate(data_loader, start=1):
         images = [img.to(device) for img in images]
         targets = [
             {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in t.items()} for t in targets
@@ -77,13 +73,20 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=20,
             losses.backward()
             optimizer.step()
 
-        running_loss += losses.item()
-        accum_steps += 1
-        if step % print_freq == 0 or step == len(data_loader):
-            avg_loss = running_loss / accum_steps
-            progress.set_postfix(loss=f"{avg_loss:.4f}", lr=f"{optimizer.param_groups[0]['lr']:.5f}")
-            running_loss = 0.0
-            accum_steps = 0
+        loss_value = losses.item()
+        running_loss += loss_value
+
+        if batch_idx % print_freq == 0 or batch_idx == total_batches:
+            elapsed = time.perf_counter() - batch_start
+            avg_loss = running_loss / batch_idx
+            lr = optimizer.param_groups[0]["lr"]
+            print(
+                f"[train] batch {batch_idx}/{total_batches}, loss={avg_loss:.4f}, lr={lr:.5f}, elapsed={elapsed:.1f}s",
+                flush=True,
+            )
+            batch_start = time.perf_counter()
+
+    return running_loss / max(total_batches, 1)
 
 
 def save_checkpoint(model, optimizer, epoch, out_dir, prefix="mask_rcnn"):
@@ -162,7 +165,8 @@ def main():
     scaler = torch.cuda.amp.GradScaler() if args.use_amp and device.type == "cuda" else None
 
     for epoch in range(start_epoch, args.epochs + 1):
-        train_one_epoch(model, optimizer, data_loader, device, epoch, scaler=scaler)
+        avg_loss = train_one_epoch(model, optimizer, data_loader, device, epoch, scaler=scaler)
+        print(f"[Epoch {epoch:02d}] loss={avg_loss:.4f}")
         lr_scheduler.step()
         save_checkpoint(model, optimizer, epoch, args.output_dir)
 
