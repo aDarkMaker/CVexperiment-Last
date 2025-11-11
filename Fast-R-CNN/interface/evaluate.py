@@ -12,7 +12,11 @@ def main():
     parser.add_argument("--det-file", required=True)
     args = parser.parse_args()
 
-    coco_gt = COCO(args.ann_file)
+    coco = COCO(args.ann_file)
+    if "info" not in coco.dataset:
+        coco.dataset["info"] = {"description": "subset"}
+    if "licenses" not in coco.dataset:
+        coco.dataset["licenses"] = []
     if not os.path.exists(args.det_file):
         raise FileNotFoundError(f"未找到检测结果：{args.det_file}")
     with open(args.det_file, "r") as f:
