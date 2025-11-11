@@ -84,17 +84,21 @@ def main(args):
         proposal_dir=args.proposal_dir,
         max_proposals=args.max_proposals,
     )
+    print(f"[INFO] Dataset loaded: {len(dataset)} images")
 
     feature_model = AlexNetExtractor(pretrained=False)
     feature_model.load_state_dict(torch.load(args.feature_ckpt, map_location=device))
     feature_model = feature_model.to(device)
     feature_model.eval()
+    print("[INFO] Feature extractor ready (AlexNet fc6/fc7)")
 
     with open(args.svm_model, "rb") as fp:
         svm_models: Dict[str, object] = pickle.load(fp)
+    print(f"[INFO] Loaded SVM models: {list(svm_models.keys())}")
     if args.bbox_reg:
         with open(args.bbox_reg, "rb") as fp:
             bbox_models: Dict[str, object] = pickle.load(fp)
+        print("[INFO] BBox regressor loaded")
     else:
         bbox_models = {}
 
@@ -110,10 +114,12 @@ def main(args):
             proposals = item["proposals"]
             image_size = image.size
             if proposals.size == 0:
+                print(f"[WARN] image {item['image_id']} has 0 proposals, skipped")
                 continue
 
             crop_tensor = preprocess_crops(dataset, image, proposals)
             if crop_tensor is None:
+                print(f"[WARN] image {item['image_id']} yielded empty crop tensor, skipped")
                 continue
             crop_tensor = crop_tensor.to(device)
             features = feature_model(crop_tensor).cpu().numpy()
@@ -154,10 +160,12 @@ def main(args):
                             "category_name": class_name,
                         }
                     )
+            if len(detections) % 1000 == 0 and len(detections) > 0:
+                print(f"[INFO] Accumulated {len(detections)} detections so far")
 
     with open(args.out_json, "w") as f:
         json.dump(detections, f)
-    print(f"检测结果已保存至 {args.out_json}，共 {len(detections)} 条")
+    print(f"[INFO] 检测结果已保存至 {args.out_json}，共 {len(detections)} 条")
 
 
 if __name__ == "__main__":

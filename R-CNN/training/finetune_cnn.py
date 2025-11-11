@@ -176,8 +176,12 @@ def main(args):
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[INFO] 使用设备: {device}")
+    print(f"[INFO] 训练样本总数: {len(train_dataset)}，批次数: {len(loader)}")
+
     feature_model = AlexNetExtractor(pretrained=True).to(device)
     classifier = nn.Linear(4096, len(class_names)).to(device)
+    print("[INFO] 已加载预训练的 AlexNet 特征提取器，并构建分类头。")
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
@@ -188,10 +192,12 @@ def main(args):
     )
 
     os.makedirs(os.path.dirname(args.feature_ckpt), exist_ok=True)
+    print(f"[INFO] 结果将保存到 {args.feature_ckpt} 与 {args.classifier_ckpt}")
 
     for epoch in range(args.epochs):
+        print(f"[INFO] ===== 开始 Epoch {epoch + 1}/{args.epochs} =====")
         loss, acc = train_one_epoch(loader, feature_model, classifier, criterion, optimizer, device)
-        print(f"[Epoch {epoch + 1:02d}] loss={loss:.4f} acc={acc:.4f}")
+        print(f"[INFO] Epoch {epoch + 1:02d} 完成：loss={loss:.4f}, acc={acc:.4f}")
 
     torch.save(feature_model.state_dict(), args.feature_ckpt)
     torch.save(classifier.state_dict(), args.classifier_ckpt)

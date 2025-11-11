@@ -28,6 +28,7 @@ def load_model(weights_path: str, device: torch.device) -> FastRCNN:
         model.load_state_dict(checkpoint)
     model.to(device)
     model.eval()
+    print(f"[INFO] Loaded Fast R-CNN weights from {weights_path}")
     return model
 
 
@@ -63,6 +64,9 @@ def main():
     os.makedirs(os.path.dirname(args.out_json), exist_ok=True)
 
     detections: List[Dict] = []
+    total = len(dataset) if not args.limit else min(args.limit, len(dataset))
+    print(f"[INFO] Running prediction on {total} images (score_thresh={args.score_thresh}, nms_thresh={args.nms_thresh})")
+
     for idx in range(len(dataset)):
         if args.limit and idx >= args.limit:
             break
@@ -106,6 +110,8 @@ def main():
                         "score": float(score.item()),
                     }
                 )
+        if (idx + 1) % 10 == 0 or idx + 1 == total:
+            print(f"[INFO] Processed {idx + 1}/{total} images, detections so far: {len(detections)}")
 
     with open(args.out_json, "w") as fp:
         json.dump(detections, fp)

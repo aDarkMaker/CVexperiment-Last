@@ -19,12 +19,13 @@ def main():
         detections = json.load(f)
     if not detections:
         raise ValueError("检测结果为空，无法评估")
-
+    print(f"[INFO] Loaded {len(detections)} detections, running COCO bbox evaluation")
     coco_dt = coco_gt.loadRes(detections)
     coco_eval = COCOeval(coco_gt, coco_dt, iouType="bbox")
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
+    print("[INFO] Evaluation complete.")
 
 
 if __name__ == "__main__":

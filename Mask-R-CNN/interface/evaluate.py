@@ -14,11 +14,13 @@ def coco_evaluate(ann_file: str, det_file: str, iou_type: str = "bbox"):
         detections = json.load(fp)
     if not detections:
         raise ValueError("检测结果为空，无法评估")
+    print(f"[INFO] Loaded {len(detections)} detections, evaluating {iou_type}")
     coco_dt = coco_gt.loadRes(detections)
     coco_eval = COCOeval(coco_gt, coco_dt, iouType=iou_type)
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
+    print(f"[INFO] {iou_type} evaluation complete.")
 
 
 def main():

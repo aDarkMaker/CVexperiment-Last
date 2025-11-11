@@ -107,6 +107,7 @@ def train_one_epoch(
             gt_labels,
         )
         if sampled_rois.numel() == 0:
+            print(f"[WARN] batch {batch_idx}: 没有采样到有效 ROI，跳过本批次")
             continue
 
         sampled_rois = sampled_rois.to(device)
@@ -167,7 +168,7 @@ def main():
         proposal_dir=args.proposal_dir,
         max_proposals=args.max_proposals,
     )
-    print(f"[INFO] Training images: {len(dataset)}")
+    print(f"[INFO] Dataset loaded: {len(dataset)} images")
 
     data_loader = DataLoader(
         dataset,
@@ -178,15 +179,21 @@ def main():
         pin_memory=device.type == "cuda",
     )
 
+    print(f"[INFO] DataLoader ready: batch_size={args.batch_size}, num_workers={args.num_workers}, batches={len(data_loader)}")
+
     model = FastRCNN(num_classes=len(class_names)).to(device)
+    print("[INFO] Fast R-CNN model initialized（ResNet50 backbone + ROIAlign）")
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    print(f"[INFO] Optimizer: SGD lr={args.lr}, momentum={args.momentum}, weight_decay={args.weight_decay}")
 
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
+    print(f"[INFO] Checkpoints will be saved to {args.output_dir}")
     os.makedirs(args.output_dir, exist_ok=True)
     for epoch in range(1, args.epochs + 1):
+        print(f"[INFO] ===== Start Epoch {epoch}/{args.epochs} =====")
         avg_loss = train_one_epoch(model, data_loader, optimizer, device, epoch, print_freq=args.print_freq)
-        print(f"[Epoch {epoch:02d}] loss={avg_loss:.4f}")
+        print(f"[INFO] Epoch {epoch:02d} finished: loss={avg_loss:.4f}")
         lr_scheduler.step()
         ckpt_path = os.path.join(args.output_dir, f"fast_rcnn_epoch{epoch}.pth")
         torch.save({"epoch": epoch, "model_state": model.state_dict(), "optimizer_state": optimizer.state_dict()}, ckpt_path)
@@ -195,6 +202,7 @@ def main():
     final_path = os.path.join(args.output_dir, "fast_rcnn_final.pth")
     torch.save(model.state_dict(), final_path)
     print(f"[INFO] Final weights saved to {final_path}")
+    print("[INFO] Training completed")
 
 
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ def main(args):
     if not detections:
         raise ValueError("检测结果为空，无法评估")
 
+    print(f"[INFO] Loaded {len(detections)} detections, running COCO evaluation...")
     coco_dt = coco.loadRes(detections)
     coco_eval = COCOeval(coco, coco_dt, iouType="bbox")
 
@@ -33,10 +34,12 @@ def main(args):
         img_ids = coco.getImgIds(catIds=cat_ids)
         coco_eval.params.catIds = cat_ids
         coco_eval.params.imgIds = img_ids
+        print(f"[INFO] Filtering evaluation to categories: {args.categories} (catIds={cat_ids})")
 
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
+    print("[INFO] Evaluation complete.")
 
 
 if __name__ == "__main__":

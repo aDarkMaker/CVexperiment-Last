@@ -53,6 +53,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=20,
     total_batches = len(data_loader)
     running_loss = 0.0
     batch_start = time.perf_counter()
+    print(f"[INFO][Epoch {epoch}] 共 {total_batches} 个 batch，开始训练")
 
     for batch_idx, (images, targets, _) in enumerate(data_loader, start=1):
         images = [img.to(device) for img in images]
@@ -75,6 +76,9 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=20,
 
         loss_value = losses.item()
         running_loss += loss_value
+
+        if batch_idx == 1:
+            print(f"[DEBUG][Epoch {epoch}] 首个 batch loss={loss_value:.4f}，包含 {len(images)} 张图像")
 
         if batch_idx % print_freq == 0 or batch_idx == total_batches:
             elapsed = time.perf_counter() - batch_start
@@ -149,10 +153,12 @@ def main():
     num_classes = len(dataset.category_names) + 1
     model = build_model(num_classes=num_classes, pretrained=not args.no_pretrained)
     model.to(device)
+    print(f"[INFO] Model ready with {num_classes} classes（含背景）")
 
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.SGD(params, lr=args.lr, momentum=0.9, weight_decay=args.weight_decay)
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
+    print(f"[INFO] Optimizer: SGD lr={args.lr}, momentum=0.9, weight_decay={args.weight_decay}")
 
     start_epoch = 1
     if args.resume:
@@ -165,8 +171,9 @@ def main():
     scaler = torch.cuda.amp.GradScaler() if args.use_amp and device.type == "cuda" else None
 
     for epoch in range(start_epoch, args.epochs + 1):
+        print(f"[INFO] ===== Start Epoch {epoch}/{args.epochs} =====")
         avg_loss = train_one_epoch(model, optimizer, data_loader, device, epoch, scaler=scaler)
-        print(f"[Epoch {epoch:02d}] loss={avg_loss:.4f}")
+        print(f"[INFO] Epoch {epoch:02d} finished: loss={avg_loss:.4f}")
         lr_scheduler.step()
         save_checkpoint(model, optimizer, epoch, args.output_dir)
 
